@@ -1,4 +1,4 @@
-name: PR Issue Guard
+name: PR Issue Guard & Auto-Fix
 
 on:
   pull_request:
@@ -7,14 +7,30 @@ on:
 jobs:
   guard:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
             const body = context.payload.pull_request.body || "";
-            if (!/Fixes\s+#\d+/.test(body)) {
-              core.setFailed(
-                "PR must reference an issue using 'Fixes #<issue-number>'"
-              );
+            const match = context.payload.pull_request.head.ref.match(/feature\/(\d+)-/);
+            if (match) {
+              const issueNumber = match[1];
+              if (!/Fixes\s+#\d+/.test(body)) {
+                const newBody = body + `\n\nFixes #${issueNumber}`;
+                await github.rest.pulls.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  pull_number: context.payload.pull_request.number,
+                  body: newBody
+                });
+              }
+            } else {
+              if (!/Fixes\s+#\d+/.test(body)) {
+                throw new Error(
+                  "PR must reference an issue using 'Fixes #<issue-number>'"
+                );
+              }
             }
