@@ -39,12 +39,13 @@ jobs:
               sha: baseRef.data.object.sha
             });
 
-            const marker = `
-### 🚀 Development
-- **Branch:** \`${branch}\`
-- **Commits:** ⏳ none
-- **Pull Request:** ⏳ none
-`;
+            const marker = [
+              "### 🚀 Development",
+              `- **Branch:** \`${branch}\``,
+              "- **Commits:** ⏳ none",
+              "- **Pull Request:** ⏳ none",
+              ""
+            ].join("\n");
 
             await github.rest.issues.update({
               owner: repo.owner,
