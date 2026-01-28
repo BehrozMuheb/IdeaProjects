@@ -1,0 +1,30 @@
+name: PR → Issue Link
+
+on:
+  pull_request:
+    types: [opened]
+
+jobs:
+  pr-link:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const match = pr.head.ref.match(/feature\/(\d+)-/);
+            if (!match) return;
+
+            const issueNumber = match[1];
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `🔗 Pull Request opened: ${pr.html_url}`
+            });
+
+

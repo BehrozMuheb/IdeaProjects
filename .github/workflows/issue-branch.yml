@@ -1,0 +1,54 @@
+name: Issue → Branch
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  create-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const repo = context.repo;
+            const base = context.payload.repository.default_branch;
+
+            const slug = issue.title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "-")
+              .replace(/(^-|-$)/g, "");
+
+            const branch = `feature/${issue.number}-${slug}`;
+
+            const baseRef = await github.rest.git.getRef({
+              owner: repo.owner,
+              repo: repo.repo,
+              ref: `heads/${base}`
+            });
+
+            await github.rest.git.createRef({
+              owner: repo.owner,
+              repo: repo.repo,
+              ref: `refs/heads/${branch}`,
+              sha: baseRef.data.object.sha
+            });
+
+            const marker = `
+### 🚀 Development
+- **Branch:** \`${branch}\`
+- **Commits:** ⏳ none
+- **Pull Request:** ⏳ none
+`;
+
+            await github.rest.issues.update({
+              owner: repo.owner,
+              repo: repo.repo,
+              issue_number: issue.number,
+              body: (issue.body || "") + marker
+            });
