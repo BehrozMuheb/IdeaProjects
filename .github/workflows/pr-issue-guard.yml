@@ -2,19 +2,40 @@ name: PR Issue Guard
 
 on:
   pull_request:
-    types: [opened, edited]
+    types: [opened, edited, reopened, synchronize]
 
 jobs:
   guard:
     runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
 
     steps:
       - uses: actions/github-script@v7
         with:
           script: |
-            const body = context.payload.pull_request.body || "";
-            if (!/Fixes\s+#\d+/.test(body)) {
-              core.setFailed(
-                "PR must reference an issue using 'Fixes #<issue-number>'"
-              );
+            const pr = context.payload.pull_request;
+            const body = pr.body || "";
+
+            if (/(?:^|\n)Fixes\s+#\d+/i.test(body)) {
+              return;
             }
+
+            const branchMatch = pr.head.ref.match(/feature\/(\d+)-/);
+            const titleMatch = pr.title.match(/#(\d+)/);
+            const issueNumber = (branchMatch && branchMatch[1]) || (titleMatch && titleMatch[1]);
+
+            if (issueNumber) {
+              const nextBody = `${body}\n\nFixes #${issueNumber}\n`;
+              await github.rest.pulls.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr.number,
+                body: nextBody
+              });
+              return;
+            }
+
+            core.setFailed(
+              "PR must reference an issue using 'Fixes #<issue-number>' (or use a feature/<issue>- branch / include #<issue> in the title so it can be auto-added)"
+            );
